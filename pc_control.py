@@ -1,9 +1,18 @@
 import serial
+import serial.tools.list_ports
 import subprocess
+import sys
 
-SERIAL_PORT = 'COM8'        # <- Change to your Arduino COM port
-BAUD_RATE   = 9600
-BRAVE_PATH  = r"C:\Program Files\BraveSoftware\Brave-Browser\Application\brave.exe"
+BAUD_RATE  = 9600
+BRAVE_PATH = r"C:\Program Files\BraveSoftware\Brave-Browser\Application\brave.exe"
+
+def find_nano_port():
+    ports = serial.tools.list_ports.comports()
+    for port in ports:
+        if any(keyword in port.description for keyword in ['CH340', 'Arduino', 'USB-SERIAL']):
+            print(f"Found device on {port.device}: {port.description}")
+            return port.device
+    return None
 
 def set_volume(direction):
     key = "[char]175" if direction == 'UP' else "[char]174"
@@ -27,8 +36,17 @@ def launch_brave():
     subprocess.Popen([BRAVE_PATH])
     print("Launching Brave!")
 
-print(f"Listening on {SERIAL_PORT}...")
-with serial.Serial(SERIAL_PORT, BAUD_RATE, timeout=0) as ser:
+print("Searching for DeskDeck...")
+port = find_nano_port()
+
+if not port:
+    print("ERROR: DeskDeck not found! Make sure the Nano is plugged in.")
+    input("Press Enter to exit...")
+    sys.exit(1)
+
+print(f"Connected on {port}!")
+
+with serial.Serial(port, BAUD_RATE, timeout=0) as ser:
     buffer = ""
     while True:
         data = ser.read(ser.in_waiting or 1).decode('utf-8', errors='ignore')
